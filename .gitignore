@@ -1,0 +1,7 @@
+venv/
+notebooks/
+pgdata/
+csv/
+log/
+__pycache__/
+.DS_Store
