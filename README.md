@@ -1,48 +1,47 @@
-# Real-time E-Commerce ETL Pipeline
+# E-Commerce ETL Pipeline
 
-**Proyecto de detección de fallas y análisis financiero.**
+Un pipeline de datos end-to-end diseñado para procesar y analizar transacciones de venta simuladas. 
 
-Este proyecto simula un entorno de alto volumen transaccional (500k registros/día) para procesar ventas, detectar anomalías y generar reportes financieros automatizados.
+El objetivo de este proyecto fue construir una arquitectura capaz de manejar **ingesta masiva (bulk loading)** y **transformación en base de datos (ELT)**, evitando los cuellos de botella típicos del procesamiento fila por fila en Python.
 
-## Arquitectura Técnica
-*   **Extract:** Generador de datos en Python (Simulación de fallos de API, latencia y datos sucios).
-*   **Load:** Ingesta masiva a PostgreSQL usando protocolo `COPY` (<1s para 500k filas).
-*   **Transform:** SQL avanzado para limpieza, normalización y reglas de negocio (Flagging de fraudes).
-*   **Orquestration:** Pipeline en Python con logging y manejo de errores.
-*   **Infra:** Docker & Docker Compose.
+## El Problema
+Simular un entorno de e-commerce donde se reciben archivos diarios con ~500,000 transacciones, muchas de las cuales contienen errores de sistema (precios negativos) o datos incompletos, y generar un reporte financiero confiable en segundos.
 
-## Resultados de Negocio
-El pipeline procesó exitosamente 500,000 transacciones con los siguientes KPIs:
-*   **Ingresos Validados:** $402M
-*   **Fraudes Detectados:** $123M (Transacciones > $4,000 bloqueadas)
-*   **Pérdidas por Devolución:** $5.4M
-*   **Tiempo Total de Ejecución:** 4.8 segundos (End-to-End)
+## Solución Técnica
 
-## Cómo ejecutarlo localmente
+### 1. Generación de Datos (`generador.py`)
+Script en Python que crea datos sintéticos. Para evitar problemas de memoria con grandes volúmenes, utilicé **generadores (`yield`)** en lugar de almacenar listas gigantes en RAM.
+- **Volumen:** 500k registros/ejecución.
+- **Caos:** Inyección aleatoria de anomalías (precios negativos, métodos de pago nulos) para probar la robustez del ETL.
 
-1. **Clonar el repositorio:**
-   ```bash
-   git clone https://github.com/CStven/ecommerce-etl-pipeline.git
-   cd ecommerce-etl-pipeline
-   ```
+### 2. Ingesta Optimizada (`load_data.py`)
+En lugar de usar el estándar `pd.to_sql` (que es lento para estos volúmenes), implementé el comando **`COPY` de PostgreSQL** a través de `psycopg2`.
+- **Resultado:** Reducción del tiempo de carga de ~40s a **<1 segundo**.
 
-2. **Levantar infraestructura:**
+### 3. Transformación SQL (`transform_sales.py`)
+La lógica de negocio se ejecuta directamente en el motor de base de datos (Postgres) para aprovechar su eficiencia.
+- Limpieza de datos nulos.
+- Cálculo de columnas derivadas (`total_venta`).
+- **Lógica de Fraude:** Flagging automático de transacciones > $4,000 o devoluciones (valores negativos).
+
+### 4. Infraestructura
+Todo corre sobre contenedores **Docker** definidos en `docker-compose.yml`, garantizando que el entorno (versión de Python, versión de Postgres) sea reproducible en cualquier máquina.
+
+## Cómo ejecutarlo
+
+1. Levantar la base de datos:
    ```bash
    docker compose up -d
    ```
 
-3. **Ejecutar el Pipeline:**
+2. Correr el pipeline completo:
    ```bash
    python main_pipeline.py
    ```
+   *Esto ejecutará secuencialmente la generación, carga y transformación.*
 
-## Estructura del Proyecto
-```text
-├── python/
-│   ├── generador.py       # Fábrica de datos sintéticos
-│   ├── load_data.py       # Cargador optimizado (Postgres COPY)
-│   └── transform_sales.py # Lógica de negocio SQL
-├── docker-compose.yml     # Configuración de BD
-├── main_pipeline.py       # Orquestador
-└── README.md
-```
+## Resultados
+En mi entorno local (WSL2), el pipeline completo procesa 500,000 registros en aproximadamente **4.8 segundos**.
+
+---
+*Repo creado como parte de mi ruta de aprendizaje de Ingeniería de Datos.*
