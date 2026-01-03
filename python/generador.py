@@ -1,4 +1,3 @@
-import pandas as pd    # Pandas for data manipulation
 import random    # Random for generating random data
 from datetime import datetime, timedelta    # Datetime for handling dates
 import csv    # CSV for writing to CSV files
